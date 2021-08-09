@@ -34,7 +34,12 @@ FILE_EXTENSIONS = (
 )
 
 def getCommandOutput(cmd: str) -> str:
-    result = sp.run(cmd.split(" "), stdout=sp.PIPE, stderr=sp.PIPE)
+    try:
+        result = sp.run(cmd.split(" "), stdout=sp.PIPE, stderr=sp.PIPE)
+    except:
+        printerr("Failed to run command: \"{}\"\nexception: {}".format(cmd, sys.exc_info()))
+        sys.exit(1)
+
     if result.returncode:
         printerr("Failed to run command: \"{}\"\nreturn code: {}\nstdout: {}\nstderr: {}".format(
             cmd, result.returncode, result.stdout, result.stderr))
