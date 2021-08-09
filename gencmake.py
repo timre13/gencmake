@@ -33,6 +33,109 @@ FILE_EXTENSIONS = (
     ".H",
 )
 
+MAIN_SKELETONS = {
+"default":
+r"""#include <iostream>
+
+int main()
+{
+    std::cout << "Hello, World!\n";
+    return 0;
+}
+""",
+
+"sdl2":
+r"""#include <SDL2/SDL.h>
+#include <iostream>
+
+#define WINDOW_WIDTH 1500
+#define WINDOW_HEIGHT 1000
+
+int main()
+{
+    if (SDL_Init(SDL_INIT_VIDEO))
+    {
+        std::cerr << "Failed to initialize SDL2: " << SDL_GetError() << '\n';
+        return 1;
+    }
+
+    auto window = SDL_CreateWindow("Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    if (!window)
+    {
+        std::cerr << "Failed to create window: " << SDL_GetError() << '\n';
+        SDL_Quit();
+        return 1;
+    }
+
+    auto renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer)
+    {
+        std::cerr << "Failed to create renderer: " << SDL_GetError() << '\n';
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    bool isDone{};
+    while (!isDone)
+    {
+        SDL_Event event;
+        while (!isDone && SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
+            case SDL_QUIT:
+                isDone = true;
+                break;
+
+            case SDL_KEYUP:
+                switch (event.key.keysym.sym)
+                {
+                case SDLK_ESCAPE:
+                    isDone = true;
+                    break;
+                }
+                break;
+            }
+        }
+        if (isDone)
+            break;
+
+        SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+        SDL_RenderClear(renderer);
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16);
+    }
+
+    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(renderer);
+    SDL_Quit();
+    return 0;
+}
+""",
+
+"gtkmm-3.0":
+r"""#include <iostream>
+
+int main()
+{
+    std::cout << "Hello, World!\n";
+    return 0;
+}
+""",
+
+"fltk":
+r"""#include <iostream>
+
+int main()
+{
+    std::cout << "Hello, World!\n";
+    return 0;
+}
+"""
+}
+
 def getCommandOutput(cmd: str) -> str:
     try:
         result = sp.run(cmd.split(" "), stdout=sp.PIPE, stderr=sp.PIPE)
@@ -91,10 +194,7 @@ class ProjectFile:
         for file in iglob("src/**/*", recursive=True):
             if file.endswith(FILE_EXTENSIONS):
                 sourceFiles.append(file)
-        if not sourceFiles:
-            printerr("Error: No source files found")
-            sys.exit(1)
-        self.file.write("add_executable({}\n{})\n".format(exeName, "".join([" "*4+x+"\n" for x in sorted(sourceFiles, reverse=True)])))
+        self.file.write("add_executable({}\n{})\n".format(exeName, "".join([" "*4+x+"\n" for x in sorted(sourceFiles or ["src/main.cpp"], reverse=True)])))
 
     def __del__(self):
         try:
@@ -140,4 +240,18 @@ if PROJECT_INCLUDE_DIRS or PROJECT_LIBS:
     file.writeLine()
 file.writeExeInfo(PROJECT_NAME)
 file.writeLine()
+print("CMakeLists.txt written")
+
+print("Writing skeleton")
+if not os.path.exists("./src"):
+    print("Creating ./src/")
+    os.mkdir("./src")
+if not os.path.exists("./src/main.cpp"):
+    print("Writing ./src/main.cpp")
+    with open("./src/main.cpp", "w+") as file:
+        file.write(MAIN_SKELETONS[PROJECT_TYPE])
+else:
+    print("src/main.cpp already exists, not writing")
+
+print("Done")
 
